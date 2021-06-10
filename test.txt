@@ -1,0 +1,12 @@
+OUTPUT "enter testVar:"
+INPUT testVar
+OUTPUT testVar
+IF testVar = "lol" THEN
+  OUTPUT "yay"
+  OUTPUT "yay again"
+ELSE IF testVar = "no" AND True THEN
+  OUTPUT "wow"
+ELSE
+  OUTPUT "haha"
+END IF
+OUTPUT 'DONE'
