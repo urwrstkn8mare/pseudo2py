@@ -1,6 +1,7 @@
 from typing import List
 import black
 import pathlib
+import argparse
 
 
 # WARNING: this assumes your syntax is correct, if not you'll just have to deal with it
@@ -53,6 +54,7 @@ def parseLines(lines: Lines):
     for line in lines:
 
         def parseLine(line: str, indent: int = 0) -> str:
+            final = None  # TODO: remove when not important
             if line.strip() == "":
                 return "\n"
             elif line.lstrip().startswith("#"):
@@ -66,7 +68,11 @@ def parseLines(lines: Lines):
                 elif command == "IF":
 
                     def parseIf(if_line: str):
-                        out = "if " + parseValue(if_line.split("THEN")[0]) + ":\n"
+                        out = (
+                            "if "
+                            + parseValue(if_line[: if_line.find("THEN")])
+                            + ":\n"
+                        )
 
                         def findEnd(out: str):
                             next_line = next(lines)
@@ -85,7 +91,11 @@ def parseLines(lines: Lines):
                         return findEnd(out)
 
                     final = parseIf(rest)
-
+                # TODO: figure out correct syntax for case statement
+                # elif command == "CASE":
+                #     toCompare = rest[: rest.find("OF") - 1]
+                #     out = ""
+                #     exit()
                 elif rest.startswith("<-"):
                     final = f"{command} = {rest[3:]}"
 
@@ -94,50 +104,31 @@ def parseLines(lines: Lines):
         yield parseLine(line)
 
 
-with open("in.txt", "rt") as fileIn:
-    with open("out.py", "w") as fileOut:
+parser = argparse.ArgumentParser(
+    description="Compile SCSA pseudocode to python code."
+)
+parser.add_argument("inputFile", type=str, help="input file")
+parser.add_argument(
+    "--run",
+    dest="run",
+    action="store_const",
+    const=True,
+    default=False,
+    help="use this if you want to immediately run the python program",
+)
+args = parser.parse_args()
+
+inputPath = pathlib.Path(args.inputFile)
+outputPath = inputPath.with_suffix(".out.py")
+
+with open(inputPath, "rt") as fileIn:
+    with open(outputPath, "w") as fileOut:
         fileOut.writelines(parseLines(Lines(fileIn.read().split("\n"))))
 
-black.format_file_in_place(
-    pathlib.Path("out.py"), True, black.Mode(), black.WriteBack.YES
-)
+black.format_file_in_place(outputPath, True, black.Mode(), black.WriteBack.YES)
 
-# def parseLine(line: str, lines: str):
-#     line = line.rstrip()
+if args.run:
+    from subprocess import call
+    from sys import executable
 
-#     indented = False
-#     converted = None
-
-#     if " " in line:
-#         command, params = line.split(" ", 1)
-#         if command == "INPUT":
-#             pass
-
-#     return {indented, converted}
-
-
-# def parseLines(lines: List[str]):
-#     for i, line in enumerate(lines):
-#         print(line)
-#         parseLine(line)
-#         break
-
-
-# def main():
-#     with open("test.txt", "rt") as f:
-#         inFile = Lines(f.read().split("\n"))
-
-
-# # main()
-
-
-# lines = Lines([str(i) for i in range(20)])
-# for line in lines:
-#     if line == "9":
-#         print("s", line)
-#         for line2 in lines:
-#             print("n", line2)
-#             if line2 == "15":
-#                 break
-#     else:
-#         print(line)
+    call([executable, outputPath])
