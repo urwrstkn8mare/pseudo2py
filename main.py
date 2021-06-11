@@ -1,4 +1,6 @@
 from typing import List
+import black
+import pathlib
 
 
 # WARNING: this assumes your syntax is correct, if not you'll just have to deal with it
@@ -27,7 +29,24 @@ class Lines:
         self.max_i = len(self.lines) - 1
 
 
-COMP_OPS = {"=": "==", "!=": "!=", "<": "<", "<=": "<=", ">": ">", ">=": ">="}
+TO_REPLACE = {
+    "=": "==",
+    "!=": "!=",
+    "<": "<",
+    "<=": "<=",
+    ">": ">",
+    ">=": ">=",
+    "TRUE": "True",
+    "FALSE": "False",
+    "AND": "and",
+    "OR": "or",
+}
+
+
+def parseValue(val: str):
+    for old, new in TO_REPLACE.items():
+        val = val.replace(old, new)
+    return val.strip()
 
 
 def parseLines(lines: Lines):
@@ -47,23 +66,11 @@ def parseLines(lines: Lines):
                 elif command == "IF":
 
                     def parseIf(if_line: str):
-                        out = "if"
-
-                        for part in if_line.split(" "):
-                            if part in COMP_OPS.keys():
-                                out += " " + COMP_OPS[part]
-                            elif part == "AND":
-                                out += " and"
-                            elif part == "OR":
-                                out += " or"
-                            elif part == "THEN":
-                                out += ":\n"
-                            else:
-                                out += " " + part
+                        out = "if " + parseValue(if_line.split("THEN")[0]) + ":\n"
 
                         def findEnd(out: str):
                             next_line = next(lines)
-                            while next_line[indent : indent + 2] == "  ":
+                            while next_line[indent : indent + 2] in ["  ", ""]:
                                 out += parseLine(next_line, indent + 2)
                                 next_line = next(lines)
                             last_line = next_line[indent:]
@@ -87,9 +94,13 @@ def parseLines(lines: Lines):
         yield parseLine(line)
 
 
-with open("test.txt", "rt") as fileIn:
-    with open("test.py", "w") as fileOut:
+with open("in.txt", "rt") as fileIn:
+    with open("out.py", "w") as fileOut:
         fileOut.writelines(parseLines(Lines(fileIn.read().split("\n"))))
+
+black.format_file_in_place(
+    pathlib.Path("out.py"), True, black.Mode(), black.WriteBack.YES
+)
 
 # def parseLine(line: str, lines: str):
 #     line = line.rstrip()
