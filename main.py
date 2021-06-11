@@ -34,48 +34,53 @@ def parseLines(lines: Lines):
     for line in lines:
 
         def parseLine(line: str, indent: int = 0) -> str:
-            if line.strip() == "" or line.startswith("#"):
+            if line.strip() == "":
                 return "\n"
+            elif line.lstrip().startswith("#"):
+                final = line.lstrip()
+            else:
+                command, rest = line[indent:].split(" ", 1)
+                if command == "INPUT":
+                    final = f"{rest} = input()"
+                elif command == "OUTPUT":
+                    final = f"print({rest})"
+                elif command == "IF":
 
-            command, rest = line[indent:].split(" ", 1)
-            if command == "INPUT":
-                final = f"{rest} = input()"
-            elif command == "OUTPUT":
-                final = f"print({rest})"
-            elif command == "IF":
+                    def parseIf(if_line: str):
+                        out = "if"
 
-                def parseIf(if_line: str):
-                    out = "if"
+                        for part in if_line.split(" "):
+                            if part in COMP_OPS.keys():
+                                out += " " + COMP_OPS[part]
+                            elif part == "AND":
+                                out += " and"
+                            elif part == "OR":
+                                out += " or"
+                            elif part == "THEN":
+                                out += ":\n"
+                            else:
+                                out += " " + part
 
-                    for part in if_line.split(" "):
-                        if part in COMP_OPS.keys():
-                            out += " " + COMP_OPS[part]
-                        elif part == "AND":
-                            out += " and"
-                        elif part == "OR":
-                            out += " or"
-                        elif part == "THEN":
-                            out += ":\n"
-                        else:
-                            out += " " + part
-
-                    def findEnd(out: str):
-                        next_line = next(lines)
-                        while next_line[indent : indent + 2] == "  ":
-                            out += parseLine(next_line, indent + 2)
+                        def findEnd(out: str):
                             next_line = next(lines)
-                        last_line = next_line[indent:]
-                        if last_line.startswith("ELSE IF"):
-                            return out + "el" + parseIf(last_line[8:])
-                        elif last_line.startswith("ELSE"):
-                            out += "else:\n"
-                            return findEnd(out)
-                        elif last_line == "END IF":
-                            return out
+                            while next_line[indent : indent + 2] == "  ":
+                                out += parseLine(next_line, indent + 2)
+                                next_line = next(lines)
+                            last_line = next_line[indent:]
+                            if last_line.startswith("ELSE IF"):
+                                return out + "el" + parseIf(last_line[8:])
+                            elif last_line.startswith("ELSE"):
+                                out += "else:\n"
+                                return findEnd(out)
+                            elif last_line == "END IF":
+                                return out
 
-                    return findEnd(out)
+                        return findEnd(out)
 
-                final = parseIf(rest)
+                    final = parseIf(rest)
+
+                elif rest.startswith("<-"):
+                    final = f"{command} = {rest[3:]}"
 
             return (indent * " ") + final + "\n"
 

@@ -1,3 +1,10 @@
+# # # # # # # # # # # # # # # # # # # #
+#
+#
+#
+#
+# # # # # # # # # # # # # # # # # # # # #         
+ 
 OUTPUT "enter testVar:"
 INPUT testVar
 OUTPUT testVar
@@ -5,6 +12,10 @@ IF testVar = "lol" THEN
   OUTPUT "yay"
   OUTPUT "yay again"
 ELSE IF testVar = "no" AND True THEN
+  IF True THEN
+    # just to test
+    testVar2 <- 8
+  END IF
   OUTPUT "wow"
 ELSE
   OUTPUT "haha"
