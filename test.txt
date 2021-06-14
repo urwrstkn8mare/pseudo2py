@@ -1,0 +1,12 @@
+OUTPUT "test"
+INPUT testVar
+IF (testVar = "THEN") THEN
+  OUTPUT "it can ignore!"
+END IF
+CASE testVar OF
+  = "no"  : OUTPUT "yes"
+  = "yes" : OUTPUT "no"
+  = "lol" : OUTPUT "hahaa"
+  DEFAULT : OUTPUT "defaykt"
+END CASE
+OUTPUT "DONE"

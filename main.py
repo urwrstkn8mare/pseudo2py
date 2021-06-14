@@ -44,16 +44,10 @@ TO_REPLACE = {
 }
 
 
-def parseValue(val: str):
-    for old, new in TO_REPLACE.items():
-        val = val.replace(old, new)
-    return val.strip()
-
-
 def parseLines(lines: Lines):
     for line in lines:
 
-        def parseLine(line: str, indent: int = 0) -> str:
+        def parseLine(line: str, *, oneLine=False, indent: int = 0) -> str:
             final = None  # TODO: remove when not important
             if line.strip() == "":
                 return "\n"
@@ -61,23 +55,41 @@ def parseLines(lines: Lines):
                 final = line.lstrip()
             else:
                 command, rest = line[indent:].split(" ", 1)
+                for old, new in TO_REPLACE.items():
+                    rest = rest.replace(old, new)
+                new_rest = ""
+                in_brackets = []
+                bracket_started = False
+                for char in rest:
+                    if char == "(" and not bracket_started:
+                        in_brackets.append("")
+                        new_rest += "%" + str(len(in_brackets) - 1)
+                        bracket_started = True
+                    elif char == ")" and bracket_started:
+                        bracket_started = False
+                    elif bracket_started:
+                        in_brackets[-1] += char
+                    else:
+                        new_rest += char
+                rest = new_rest.strip()
+
                 if command == "INPUT":
                     final = f"{rest} = input()"
                 elif command == "OUTPUT":
                     final = f"print({rest})"
-                elif command == "IF":
+                elif command == "IF" and not oneLine:
 
                     def parseIf(if_line: str):
                         out = (
                             "if "
-                            + parseValue(if_line[: if_line.find("THEN")])
+                            + if_line[: if_line.find("THEN")].strip()
                             + ":\n"
                         )
 
                         def findEnd(out: str):
                             next_line = next(lines)
                             while next_line[indent : indent + 2] in ["  ", ""]:
-                                out += parseLine(next_line, indent + 2)
+                                out += parseLine(next_line, indent=(indent + 2))
                                 next_line = next(lines)
                             last_line = next_line[indent:]
                             if last_line.startswith("ELSE IF"):
@@ -91,13 +103,36 @@ def parseLines(lines: Lines):
                         return findEnd(out)
 
                     final = parseIf(rest)
-                # TODO: figure out correct syntax for case statement
-                # elif command == "CASE":
-                #     toCompare = rest[: rest.find("OF") - 1]
-                #     out = ""
-                #     exit()
+                elif command == "CASE" and not oneLine:
+                    toCompare = rest[: rest.find("OF") - 1].strip()
+                    print(toCompare)
+                    final = ""
+                    firstIf = True
+                    next_line = next(lines)
+                    while True:
+                        colon_index = next_line.find(":")
+                        if next_line[indent : indent + 4] == "  = ":
+                            final += f"{'' if firstIf else 'el'}if {toCompare} == {next_line[indent+4:colon_index].strip()}: {parseLine(next_line[colon_index+1:].strip(), oneLine=True)}"
+                            firstIf = False
+                        elif next_line[indent : indent + 9] == "  DEFAULT":
+                            final += f"else: {parseLine(next_line[colon_index+1:].strip(), oneLine=True)}\n"
+                        elif next_line.strip().startswith("#"):
+                            final += f"{(indent+2)*' '}{next_line.strip()}\n"
+                        elif next_line.strip() == "":
+                            final += "\n"
+                        else:
+                            break
+                        next_line = next(lines)
+                # elif
                 elif rest.startswith("<-"):
                     final = f"{command} = {rest[3:]}"
+
+                for i, in_bracket in enumerate(in_brackets):
+                    final = final.replace("%" + str(i), in_bracket)
+
+            # print("-----\n" + line[indent:] + "\n------")
+            # print("command: " + command)
+            # print("rest: " + rest)
 
             return (indent * " ") + final + "\n"
 
