@@ -54,7 +54,7 @@ def parseLines(lines: Lines):
             elif line.lstrip().startswith("#"):
                 final = line.lstrip()
             else:
-                command, rest = line[indent:].split(" ", 1)
+                command, rest = (line[indent:] + " ").split(" ", 1)
                 for old, new in TO_REPLACE.items():
                     rest = rest.replace(old, new)
                 new_rest = ""
@@ -89,7 +89,7 @@ def parseLines(lines: Lines):
                         def findEnd(out: str):
                             next_line = next(lines)
                             while next_line[indent : indent + 2] in ["  ", ""]:
-                                out += parseLine(next_line, indent=(indent + 2))
+                                out += parseLine(next_line, indent=indent + 2)
                                 next_line = next(lines)
                             last_line = next_line[indent:]
                             if last_line.startswith("ELSE IF"):
@@ -105,7 +105,6 @@ def parseLines(lines: Lines):
                     final = parseIf(rest)
                 elif command == "CASE" and not oneLine:
                     toCompare = rest[: rest.find("OF") - 1].strip()
-                    print(toCompare)
                     final = ""
                     firstIf = True
                     next_line = next(lines)
@@ -123,7 +122,31 @@ def parseLines(lines: Lines):
                         else:
                             break
                         next_line = next(lines)
-                # elif
+                elif command == "FOR" and not oneLine:
+                    var, _, start, _, end = rest.split(" ")
+                    final = f"for {var} in range({start}, {end}+1):\n"
+                    next_line = next(lines)
+                    while next_line[indent : indent + 2] in ["  ", ""]:
+                        final += parseLine(next_line, indent=indent + 2)
+                        next_line = next(lines)
+                elif command == "WHILE" and not oneLine:
+                    final = f"while {rest}:\n"
+                    next_line = next(lines)
+                    while next_line[indent : indent + 2] in ["  ", ""]:
+                        final += parseLine(next_line, indent=indent + 2)
+                        next_line = next(lines)
+                elif command == "REPEAT" and not oneLine:
+                    final = "while True:\n"
+                    next_line = next(lines)
+                    while next_line[indent : indent + 2] in ["  ", ""]:
+                        final += parseLine(next_line, indent=indent + 2)
+                        next_line = next(lines)
+                    _, boolean_expression = next_line.split(" ", 1)
+                    for old, new in TO_REPLACE.items():
+                        boolean_expression = boolean_expression.replace(
+                            old, new
+                        )
+                    final += f"{(indent+2)*' '}if {boolean_expression}:\n{(indent+2+2)*' '}break\n"
                 elif rest.startswith("<-"):
                     final = f"{command} = {rest[3:]}"
 
