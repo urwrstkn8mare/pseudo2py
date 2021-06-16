@@ -52,7 +52,7 @@ def parseLines(lines: Lines):
             if line.strip() == "":
                 return "\n"
             elif line.lstrip().startswith("#"):
-                final = line.lstrip()
+                final = line.lstrip() + "\n"
             else:
                 command, rest = (line[indent:] + " ").split(" ", 1)
                 for old, new in TO_REPLACE.items():
@@ -79,7 +79,10 @@ def parseLines(lines: Lines):
                     while next_line[indent : indent + 2] in ["  ", ""]:
                         out += parseLine(next_line, indent=indent + 2)
                         next_line = next(lines)
-                    return out, next_line if returnNextLine else out
+                    if returnNextLine:
+                        return out, next_line
+                    else:
+                        return out
 
                 if command == "INPUT":
                     final = f"{rest} = input()\n"
@@ -122,7 +125,7 @@ def parseLines(lines: Lines):
                             final += f"{'' if firstIf else 'el'}if {toCompare} == {next_line[indent+4:colon_index].strip()}: {parseLine(next_line[colon_index+1:].strip(), oneLine=True)}"
                             firstIf = False
                         elif next_line[indent : indent + 9] == "  DEFAULT":
-                            final += f"else: {parseLine(next_line[colon_index+1:].strip(), oneLine=True)}\n"
+                            final += f"else: {parseLine(next_line[colon_index+1:].strip(), oneLine=True)}"
                         elif next_line.strip().startswith("#"):
                             final += f"{(indent+2)*' '}{next_line.strip()}\n"
                         elif next_line.strip() == "":
@@ -132,7 +135,7 @@ def parseLines(lines: Lines):
                         next_line = next(lines)
                 elif command == "FOR" and not oneLine:
                     var, _, start, _, end = rest.split(" ")
-                    final = f"for {var} in range({start}, {end}+1):\n{parseSimpleIndented}"
+                    final = f"for {var} in range({start}, {end}+1):\n{parseSimpleIndented()}"
                 elif command == "WHILE" and not oneLine:
                     final = f"while {rest}:\n{parseSimpleIndented()}"
                 elif command == "REPEAT" and not oneLine:
@@ -147,7 +150,7 @@ def parseLines(lines: Lines):
                     final += f"{(indent+2)*' '}if {boolean_expression}:\n{(indent+2+2)*' '}break\n"
                 elif command == "MODULE" and not oneLine:
                     name, args = rest.split(" ", 1)
-                    final = f"def {name}({args}):\n{parseSimpleIndented()}return {args}\n"
+                    final = f"def {name}({args}):\n{parseSimpleIndented()}{(indent+2)*' '}return {args}\n"
                 elif command == "CALL":
                     name, args = rest.split(" ", 1)
                     final = f"{args} = {name}({args})\n"
@@ -163,6 +166,8 @@ def parseLines(lines: Lines):
             # print("-----\n" + line[indent:] + "\n------")
             # print("command: " + command)
             # print("rest: " + rest)
+
+            # print(final)
 
             return (indent * " ") + final
 
@@ -185,7 +190,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Compile SCSA pseudocode to python code."
     )
-    parser.add_argument("inputFile", type=str, help="input file")
+    parser.add_argument(
+        "inputFile", type=str, help="input file", nargs="?", default="test.txt"
+    )
     parser.add_argument(
         "--run",
         dest="run",
