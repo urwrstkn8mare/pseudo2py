@@ -73,10 +73,18 @@ def parseLines(lines: Lines):
                         new_rest += char
                 rest = new_rest.strip()
 
+                def parseSimpleIndented(*, returnNextLine=False):
+                    out = ""
+                    next_line = next(lines)
+                    while next_line[indent : indent + 2] in ["  ", ""]:
+                        out += parseLine(next_line, indent=indent + 2)
+                        next_line = next(lines)
+                    return out, next_line if returnNextLine else out
+
                 if command == "INPUT":
-                    final = f"{rest} = input()"
+                    final = f"{rest} = input()\n"
                 elif command == "OUTPUT":
-                    final = f"print({rest})"
+                    final = f"print({rest})\n"
                 elif command == "IF" and not oneLine:
 
                     def parseIf(if_line: str):
@@ -87,10 +95,10 @@ def parseLines(lines: Lines):
                         )
 
                         def findEnd(out: str):
-                            next_line = next(lines)
-                            while next_line[indent : indent + 2] in ["  ", ""]:
-                                out += parseLine(next_line, indent=indent + 2)
-                                next_line = next(lines)
+                            outToAdd, next_line = parseSimpleIndented(
+                                returnNextLine=True
+                            )
+                            out += outToAdd
                             last_line = next_line[indent:]
                             if last_line.startswith("ELSE IF"):
                                 return out + "el" + parseIf(last_line[8:])
@@ -124,31 +132,30 @@ def parseLines(lines: Lines):
                         next_line = next(lines)
                 elif command == "FOR" and not oneLine:
                     var, _, start, _, end = rest.split(" ")
-                    final = f"for {var} in range({start}, {end}+1):\n"
-                    next_line = next(lines)
-                    while next_line[indent : indent + 2] in ["  ", ""]:
-                        final += parseLine(next_line, indent=indent + 2)
-                        next_line = next(lines)
+                    final = f"for {var} in range({start}, {end}+1):\n{parseSimpleIndented}"
                 elif command == "WHILE" and not oneLine:
-                    final = f"while {rest}:\n"
-                    next_line = next(lines)
-                    while next_line[indent : indent + 2] in ["  ", ""]:
-                        final += parseLine(next_line, indent=indent + 2)
-                        next_line = next(lines)
+                    final = f"while {rest}:\n{parseSimpleIndented()}"
                 elif command == "REPEAT" and not oneLine:
                     final = "while True:\n"
-                    next_line = next(lines)
-                    while next_line[indent : indent + 2] in ["  ", ""]:
-                        final += parseLine(next_line, indent=indent + 2)
-                        next_line = next(lines)
+                    toAdd, next_line = parseSimpleIndented(returnNextLine=True)
+                    final += toAdd
                     _, boolean_expression = next_line.split(" ", 1)
                     for old, new in TO_REPLACE.items():
                         boolean_expression = boolean_expression.replace(
                             old, new
                         )
                     final += f"{(indent+2)*' '}if {boolean_expression}:\n{(indent+2+2)*' '}break\n"
+                elif command == "MODULE" and not oneLine:
+                    name, args = rest.split(" ", 1)
+                    final = f"def {name}({args}):\n{parseSimpleIndented()}return {args}\n"
+                elif command == "CALL":
+                    name, args = rest.split(" ", 1)
+                    final = f"{args} = {name}({args})\n"
+                elif command == "FUNCTION" and not oneLine:
+                    name, args = rest.split(" ", 1)
+                    final = f"def {name}({args}):\n{parseSimpleIndented()}"
                 elif rest.startswith("<-"):
-                    final = f"{command} = {rest[3:]}"
+                    final = f"{command} = {rest[3:]}\n"
 
                 for i, in_bracket in enumerate(in_brackets):
                     final = final.replace("%" + str(i), in_bracket)
@@ -157,36 +164,42 @@ def parseLines(lines: Lines):
             # print("command: " + command)
             # print("rest: " + rest)
 
-            return (indent * " ") + final + "\n"
+            return (indent * " ") + final
 
         yield parseLine(line)
 
 
-parser = argparse.ArgumentParser(
-    description="Compile SCSA pseudocode to python code."
-)
-parser.add_argument("inputFile", type=str, help="input file")
-parser.add_argument(
-    "--run",
-    dest="run",
-    action="store_const",
-    const=True,
-    default=False,
-    help="use this if you want to immediately run the python program",
-)
-args = parser.parse_args()
+# converts file from pseudo to py
+def pseudo2py(inputPath: pathlib.Path, suffix: str = ".out.py") -> pathlib.Path:
+    outputPath = inputPath.with_suffix(suffix)
+    with open(inputPath, "rt") as fileIn:
+        with open(outputPath, "w") as fileOut:
+            fileOut.writelines(parseLines(Lines(fileIn.read().split("\n"))))
 
-inputPath = pathlib.Path(args.inputFile)
-outputPath = inputPath.with_suffix(".out.py")
+    black.format_file_in_place(
+        outputPath, True, black.Mode(), black.WriteBack.YES
+    )
 
-with open(inputPath, "rt") as fileIn:
-    with open(outputPath, "w") as fileOut:
-        fileOut.writelines(parseLines(Lines(fileIn.read().split("\n"))))
 
-black.format_file_in_place(outputPath, True, black.Mode(), black.WriteBack.YES)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Compile SCSA pseudocode to python code."
+    )
+    parser.add_argument("inputFile", type=str, help="input file")
+    parser.add_argument(
+        "--run",
+        dest="run",
+        action="store_const",
+        const=True,
+        default=False,
+        help="use this if you want to immediately run the python program",
+    )
+    args = parser.parse_args()
 
-if args.run:
-    from subprocess import call
-    from sys import executable
+    outputPath = pseudo2py(pathlib.Path(args.inputFile))
 
-    call([executable, outputPath])
+    if args.run:
+        from subprocess import call
+        from sys import executable
+
+        call([executable, outputPath])
