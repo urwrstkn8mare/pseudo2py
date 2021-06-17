@@ -53,6 +53,8 @@ def parseLines(lines: Lines):
                 return "\n"
             elif line.lstrip().startswith("#"):
                 final = line.lstrip() + "\n"
+            elif line.lstrip().startswith("PYTHON"):
+                final = line.strip().split(" ", 1)[1].strip() + "\n"
             else:
                 command, rest = (line[indent:] + " ").split(" ", 1)
                 for old, new in TO_REPLACE.items():
@@ -167,8 +169,6 @@ def parseLines(lines: Lines):
             # print("command: " + command)
             # print("rest: " + rest)
 
-            # print(final)
-
             return (indent * " ") + final
 
         yield parseLine(line)
@@ -184,6 +184,8 @@ def pseudo2py(inputPath: pathlib.Path, suffix: str = ".out.py") -> pathlib.Path:
     black.format_file_in_place(
         outputPath, True, black.Mode(), black.WriteBack.YES
     )
+
+    return outputPath
 
 
 if __name__ == "__main__":

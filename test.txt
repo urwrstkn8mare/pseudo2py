@@ -1,0 +1,13 @@
+# # # # # # # # # #
+# 
+#   a PROGRAM
+#
+# # # # # # # # # #
+
+PYTHON import os
+OUTPUT os.name
+IF os.name = "posix" THEN
+  OUTPUT "yay"
+  PYTHON print('yay in python')
+END IF
+OUTPUT "DONE"
